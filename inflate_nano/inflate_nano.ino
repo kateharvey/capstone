@@ -109,6 +109,8 @@ void setup() {
   }
   Serial.println("MPR 2 initialization complete");
 
+  solenoid_setup();
+
   // log pressure offset:
   atm1 = mpr1.readPressure();
   Serial.print("Offset pressure MPR1: "); Serial.println(atm1);
@@ -130,11 +132,10 @@ void loop() {
   delay(2000);
 
   Serial.println("Deflating...");
-  digitalWrite(S1A, HIGH);
+  //digitalWrite(S1A, HIGH);
     // TO DO : try leaving digital pins in high/low and only changing pwm
-  analogWrite(S12EN, 255);
-  delay(1000);
-  digitalWrite(S1A, LOW); // set back to pump mode
+  //analogWrite(S12EN, 255);
+  deflate(0);
   delay(1000);
 
   // run pump 2
@@ -144,26 +145,35 @@ void loop() {
 
   // deflate
   Serial.println("Deflating...");
-  digitalWrite(S3A, HIGH);
-  analogWrite(S34EN, 255);
-  delay(1000);
-  digitalWrite(S3A, LOW); // set back to pump mode
+  deflate(1);
   delay(1000);
 
   Serial.println("End of loop.");
   delay(5000);
 }
 
-void vacuum_mode(int sol) {
-  if (sol == 1) {
-    digitalWrite(S1A, HIGH);
-    digitalWrite(S2A, LOW);
+void solenoid_setup() {
+
+  analogWrite(S12EN, 0);
+  analogWrite(S34EN, 0);
+
+  // set all digital lines to power solenoids;
+  digitalWrite(S1A, LOW);
+  digitalWrite(S2A, HIGH);
+  digitalWrite(S3A, LOW);
+  digitalWrite(S4A, HIGH);
+}
+
+void deflate(int sol) {
+  if (sol == 0) {
     analogWrite(S12EN, 255);
+    delay(10);
+    analogWrite(S12EN, 0); // set back to pump line
   }
-  else if (sol == 2) {
-    digitalWrite(S3A, HIGH);
-    digitalWrite(S4A, LOW);
+  else if (sol == 1) {
     analogWrite(S34EN, 255);
+    delay(10);
+    analogWrite(S34EN, 0);
   }
   else {
     return;
@@ -172,12 +182,16 @@ void vacuum_mode(int sol) {
 
 void select_motor(int motor) {
   if (motor == 0) {
+    p_actual = p1_actual;
+    p_target = p1_target;
     pin1 = P1A;
     pin2 = P2A;
     pwm_pin = P12EN;
     atm = atm1;
   }
   else if (motor == 1) {
+    p_actual = p2_actual;
+    p_target = p2_target;
     pin1 = P3A;
     pin2 = P4A;
     pwm_pin = P34EN;
@@ -188,7 +202,7 @@ void select_motor(int motor) {
   }
 }
 
-void test_pump(int motor, int time_ms) {
+void test_pump(int motor) {
   select_motor(motor);
   tcaselect(motor);
 
@@ -223,7 +237,6 @@ void print_outputs() {
   Serial.print(p_target); Serial.print(","); // input value
   Serial.println(p_actual); // pressure sensor reading
 }
-
 
 
 void inflate_thumb(int pwm_speed, int time_ms) {
