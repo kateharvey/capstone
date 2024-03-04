@@ -1,4 +1,5 @@
 # script to collect serial data from arduino
+# IMPORTANT: ensure Arduino serial monitor is closed before running this script
 import csv
 import os
 import serial # pip install pyserial
@@ -6,7 +7,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 # set up comport:
-COMPORT = '/dev/cu.usbserial-1420' # adjust this
+COMPORT = '/dev/cu.usbmodem-14201' # adjust this
 arduino = serial.Serial(COMPORT, 115200, bytesize=8)
 print(f"Connected to port {arduino.name}.")
 
