@@ -4,8 +4,12 @@
 // 2. In the collect_data.py script, enter the COMPORT that the Arduino is connected to.
 // 3. Upload this sketch.
 // 4. While running, ensure that Serial Monitor is CLOSED or the .py script will not be able to access the port.
-// 5. Run the .py script to collect and plot data.
+// 5. Run the .py script to collect and plot data (restart arduino if needed).
 ////////////////////////////////////////////////////////////////////////////////
+#include <Wire.h>
+#include "Adafruit_MPRLS.h"
+// #include <MsTimer2.h>
+#include <math.h>
 
 // Define Pressure Sensors
 #define RESET_PIN  -1  // set to any GPIO pin # to hard-reset on begin()
@@ -14,6 +18,7 @@
 #define SCL A5         // set clock line (A5)
 Adafruit_MPRLS mpr1 = Adafruit_MPRLS(RESET_PIN, EOC_PIN);
 Adafruit_MPRLS mpr2 = Adafruit_MPRLS(RESET_PIN, EOC_PIN);
+Adafruit_MPRLS mpr = Adafruit_MPRLS(RESET_PIN, EOC_PIN);
 
 // Define Pump Pins (H-Bridge IC)
 #define P12EN 3     // enable switch (PWM to control speed)
@@ -60,36 +65,35 @@ volatile float VtoPWM = 0;                    // Conversion factor from Volts to
 ////////////////////////////////////////////////////////////////////////////////
 // USER DECLARED INPUTS
 static byte Mode = 0; // 0, 1, 2, 3 // use 0 for now (open loop step)
-static float Step_Input = 20; // Declare Step Input PWM output (0-1023)
-  // DO NOT EXCEED 300
+static float Step_Input = 50; // Declare Step Input PWM output (0-255)
 
 static float Freq_Final = 0; // Declare Final Frequency of Chirp
-static float PWM_Amp = 0; // Declare PWM output amplitude of Chirp (0-1023)
+static float PWM_Amp = 0; // Declare PWM output amplitude of Chirp (0-255)
 
-// Declare PID Gains 
+// Declare PID Gains
 static float Kp = 0;
 static float Ki = 0;
 static float Kd = 0;
 static float N = 0;
 
-float Reference_Input = 20; // Declare Desired Input Value (radians)
+float Reference_Input = 0; // Declare Desired Input Value
 float I_Gain = 1; // Declare Input Filter Function I(s) (assumed to be a gain)
 float V_in = 0; // Declare Voltage Input (volts)
 static unsigned int Period = 10; // Declare Capture/Control Loop Period in milli seconds (2-1000)
-static float Time = 4; // Declare Test Duration in seconds
+static float Time = 8; // Declare Test Duration in seconds
 
-float p1_actual = 0;
-float p1_target = 500; // Set this before running: 0-1000
-float p2_actual = 0;
-float p2_target = 40;
 float atm1;
 float atm2;
 float atm;
+float p_actual;
+float p_target = Step_Input;
+float p1_actual = 0;
+float p1_target = 100; // Set this before running: 0-1000
+float p2_actual = 0;
+float p2_target = 40;
 int pin1;
 int pin2;
 int pwm_pin;
-float p_actual = 0;
-float p_target = Step_Input;
 
 // Timer Variables
 unsigned long offsetTime;
@@ -114,18 +118,19 @@ void stop_pump(int motor)
 void inflate(int motor, float pwm_value) // takes in controller_output
 {
   select_motor(motor); // set motor pins
-  tcaselect(motor);
   digitalWrite(pin1, LOW);
   digitalWrite(pin2, HIGH);
   analogWrite(pwm_pin, pwm_value);
   // print_outputs();
 }
 
-void deflate(float PWM_Value) // takes in controller_output
+/*
+void deflate(float pwm_value) // takes in controller_output
 {
   pump.brake();
   solenoid.drive(PWM_Value);
 }
+*/
 
 void tcaselect(uint8_t i) {
   if (i > 7) return;
@@ -136,7 +141,7 @@ void tcaselect(uint8_t i) {
 
 void solenoid_setup() {
   // call once during setup() loop before measuring offset
-  Serial.println("Emptying bladders...");
+  //Serial.println("Emptying bladders...");
   
   // these do not change when switching lines, only enable pins (S12EN/S34EN)
   digitalWrite(S1A, LOW);
@@ -152,10 +157,12 @@ void solenoid_setup() {
   // set back to pump lines:
   analogWrite(S12EN, 0);
   analogWrite(S34EN, 0);
-  Serial.println("Bladders ready.");
+  //Serial.println("Bladders ready.");
 }
 
 void select_motor(int motor) {
+  tcaselect(motor);
+
   if (motor == 0) {
     p_actual = p1_actual;
     p_target = p1_target;
@@ -163,6 +170,7 @@ void select_motor(int motor) {
     pin2 = P2A;
     pwm_pin = P12EN;
     atm = atm1;
+    mpr = mpr1;
   }
   else if (motor == 1) {
     p_actual = p2_actual;
@@ -171,6 +179,7 @@ void select_motor(int motor) {
     pin2 = P4A;
     pwm_pin = P34EN;
     atm = atm2;
+    mpr = mpr2;
   }
   else {
     return;
@@ -223,19 +232,16 @@ void setup() {
   // empty bladders; log pressure offsets
   solenoid_setup();
   atm1 = mpr1.readPressure();
-  Serial.print("Offset pressure MPR1: "); Serial.println(atm1);
+  //Serial.print("Offset pressure MPR1: "); Serial.println(atm1);
   atm2 = mpr2.readPressure();
-  Serial.print("Offset pressure MPR2: "); Serial.println(atm2);
+  //Serial.print("Offset pressure MPR2: "); Serial.println(atm2);
   delay(3000);
   offsetTime = millis();
 }
 
 void loop() {
-  Serial.println("Starting control loop.");
-  delay(1000);
-
   // Define Local Variables  
-  long unsigned int Cnt_Max = 0;        // Number of iterations to be preformed
+  long unsigned int Cnt_Max = 0;        // Number of iterations
 
   // Reset Global Variables
   CO[0] = 0;                            // Reset Controller Output at t
@@ -246,10 +252,10 @@ void loop() {
   E[2] = 0;                             // Reset Error at t-2
 
   // Precalculate Catpture/Control Loop Variables to speed up execuation time
-  Ts = (float)Period/1000;              // Catpture/Control Loop Sample Period converted to seconds from milliseconds
-  Freq = 1/Ts;                          // Calculate Catpture/Control Loop Sample Frequency in Hz
-  Cnt_Max = Freq * Time;                // Calculate number of interations to be performed
-  VtoPWM = 1023/V_in;                   // Conversion factor of Volts to PWM duty cycle for analogWrite function 
+  Ts = (float)Period/1000;  // Catpture/Control Loop Sample Period s
+  Freq = 1/Ts;              // Calculate Catpture/Control Loop Sample Frequency in Hz
+  Cnt_Max = Freq * Time;    // Calculate number of interations to be performed
+  VtoPWM = 255/V_in;       // Conversion factor of Volts to PWM duty cycle for analogWrite function
 
   C1 = -(2 + N*Ts)/(1 + N*Ts);          // Calculate Controller Output coefficient @ t-1
   C2 = 1/(1 + N*Ts);                    // Calculate Controller Output coefficient @ t-2  
@@ -267,19 +273,23 @@ void loop() {
   Serial.println("Number of iterations: ");
   Serial.println(Cnt_Max);
 
+  // Serial.println("Starting control loop...");
+  delay(5000);
+  select_motor(0);
+
   for (Cnt=0; Cnt<=Cnt_Max; Cnt++) {
     // move motor
     OLStep(); // Change this for other modes
-    inflate(Controller_Output);
+    inflate(0, Controller_Output);
     p_actual = mpr.readPressure() - atm;
 
     Serial.println(p_target); // R (Reference_Input)
     Serial.println(p_actual); // Y (Encoder_Count)
   }
 
-  Serial.println("Capture complete.");
+  stop_pump(0);
   while (1) {
   }
-
+  // delay(5000);
 }
 
