@@ -2,7 +2,7 @@
 #include "Adafruit_MPRLS.h"
 // #include <MsTimer2.h>
 #include <math.h>
-#include <inflate_nano.h>
+// #include <inflate_nano.h>
 
 //////////////////////////////////////////////////////////////
 // PINOUTS ///////////////////////////////////////////////////
@@ -44,7 +44,7 @@ float atm;
 float p_actual;
 float p_target;
 float p1_actual = 0;
-float p1_target = 1000; // pressure in mbar – sensor reads up to 1000
+float p1_target = 100; // pressure in mbar – sensor reads up to 1000
 float p2_actual = 0;
 float p2_target = 100;
 
@@ -61,9 +61,6 @@ bool USE_FSR = false;
 unsigned long offsetTime;
 unsigned long currTime;
 
-class Motor() {
-
-}
 
 void tcaselect(uint8_t i) {
   if (i > 7) return;
@@ -141,9 +138,9 @@ void setup() {
 }
 
 void loop() {
-  collect_data(0, 150, 10);
-    // motor: 0
-    // speed: 150
+  collect_data(0, 50, 10);
+    // motor: 1
+    // speed: 150 
     // num_trials: 10
 }
 
@@ -153,21 +150,23 @@ void collect_data(int motor, int pwm_speed, int num_trials) {
     inflate(motor, pwm_speed);
     delay(2000);
     Serial.println("Deflating...");
-    delfate(motor);
+    deflate(motor);
     Serial.print("Completed trial "); Serial.println(i);
     delay(2000);
   }
 }
 
 void select_motor(int motor) {
+  tcaselect(motor);
+
   if (motor == 0) {
     p_actual = p1_actual;
     p_target = p1_target;
-    pin1 = P1A;
-    pin2 = P2A;
+    pin1 = P2A;
+    pin2 = P1A;
     pwm_pin = P12EN;
     atm = atm1;
-    mpr = &mpr1; // don't know if this will work
+    mpr = mpr1;
   }
   else if (motor == 1) {
     p_actual = p2_actual;
@@ -176,7 +175,7 @@ void select_motor(int motor) {
     pin2 = P4A;
     pwm_pin = P34EN;
     atm = atm2;
-    mpr = &mpr2;
+    mpr = mpr2;
   }
   else {
     return;
@@ -185,29 +184,15 @@ void select_motor(int motor) {
 
 void inflate(int motor, int pwm_speed) {
   select_motor(motor);
-  tcaselect(motor);
 
-  if (motor == 0) {
-    while (p_actual < p_target) {
-      p_actual = mpr1.readPressure() - atm; // read current pressure
-      digitalWrite(pin1, LOW); // set these opposite to spin motor cw/ccw
-      digitalWrite(pin2, HIGH);
-      analogWrite(pwm_pin, pwm_speed); // drive motor
-      print_outputs(); // send outputs to serial monitor
-    }
-    analogWrite(pwm_pin, 0); // stop motor
+  while (p_actual < p_target) {
+    p_actual = mpr.readPressure() - atm; // read current pressure
+    digitalWrite(pin1, LOW); // set these opposite to spin motor cw/ccw
+    digitalWrite(pin2, HIGH);
+    analogWrite(pwm_pin, pwm_speed); // drive motor
+    print_outputs(); // send outputs to serial monitor
   }
-
-  if (motor == 1) {
-    while (p_actual < p_target) {
-      p_actual = mpr2.readPressure() - atm; // read current pressure
-      digitalWrite(pin1, LOW); // set these opposite to spin motor cw/ccw
-      digitalWrite(pin2, HIGH);
-      analogWrite(pwm_pin, pwm_speed); // drive motor
-      print_outputs(); // send outputs to serial monitor
-    }
-    analogWrite(pwm_pin, 0); // stop motor
-  }
+  analogWrite(pwm_pin, 0); // stop motor
 }
 
 void deflate(int sol) {
