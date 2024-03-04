@@ -252,16 +252,16 @@ void loop() {
   E[2] = 0;                             // Reset Error at t-2
 
   // Precalculate Catpture/Control Loop Variables to speed up execuation time
-  Ts = (float)Period/1000;  // Catpture/Control Loop Sample Period s
-  Freq = 1/Ts;              // Calculate Catpture/Control Loop Sample Frequency in Hz
-  Cnt_Max = Freq * Time;    // Calculate number of interations to be performed
-  VtoPWM = 255/V_in;       // Conversion factor of Volts to PWM duty cycle for analogWrite function
+  Ts = (float)Period/1000; // Catpture/Control Loop Sample Period s
+  Freq = 1/Ts;             // Calculate Catpture/Control Loop Sample Freq. in Hz
+  Cnt_Max = Freq * Time;   // Calculate number of interations to be performed
+  VtoPWM = 255/V_in;       // Conversion factor of Volts to PWM duty cycle
 
-  C1 = -(2 + N*Ts)/(1 + N*Ts);          // Calculate Controller Output coefficient @ t-1
-  C2 = 1/(1 + N*Ts);                    // Calculate Controller Output coefficient @ t-2  
-  E0 = (Kp*(1 + N*Ts) + Ki*Ts*(1 + N*Ts) + Kd*N)/(1 + N*Ts);      // Calculate Error coefficient @ t
-  E1 = -(Kp*(2 + N*Ts) + Ki*Ts + 2*Kd*N)/(1 + N*Ts);              // Calculate Error coefficient @ t-1
-  E2 = (Kp + Kd*N)/(1 + N*Ts);                                    // Calculate Error coefficient @ t-2
+  C1 = -(2 + N*Ts)/(1 + N*Ts);  // Calculate Controller Output coefficient @ t-1
+  C2 = 1/(1 + N*Ts);            // Calculate Controller Output coefficient @ t-2
+  E0 = (Kp*(1 + N*Ts) + Ki*Ts*(1 + N*Ts) + Kd*N)/(1 + N*Ts); // Error coefficient @ t
+  E1 = -(Kp*(2 + N*Ts) + Ki*Ts + 2*Kd*N)/(1 + N*Ts);  // Error coefficient @ t-1
+  E2 = (Kp + Kd*N)/(1 + N*Ts);                        // Error coefficient @ t-2
 
   // write settings to serial monitor
   Serial.println("Capture frequency (Hz): ");
