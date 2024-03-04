@@ -54,7 +54,7 @@ int pin2;
 // int i = 0; // index for testing
 
 // Set up FSR
-const int FSR_PIN;
+int FSR_PIN = 0;
 bool USE_FSR = false;
 
 // Timer Variables
@@ -91,6 +91,9 @@ void solenoid_setup() {
 }
 
 void setup() {
+  // for sensing
+  pinMode(FSR_PIN, OUTPUT);
+
   // Pump control pins
   pinMode(P12EN, OUTPUT);
   pinMode(P1A, OUTPUT);
@@ -144,17 +147,6 @@ void loop() {
     // num_trials: 10
 }
 
-void collect_data(int motor, int pwm_speed, int num_trials) {
-  for (int i = 0; i < num_trials; i++) {
-    Serial.print("Inflating bladder..."); Serial.println(motor);
-    inflate(motor, pwm_speed);
-    delay(2000);
-    Serial.println("Deflating...");
-    deflate(motor);
-    Serial.print("Completed trial "); Serial.println(i);
-    delay(2000);
-  }
-}
 
 void select_motor(int motor) {
   tcaselect(motor);
@@ -185,6 +177,12 @@ void select_motor(int motor) {
 void inflate(int motor, int pwm_speed) {
   select_motor(motor);
 
+  if (USE_FSR) {
+    read_FSR(); // if using FSR, overwrites manually entered p_target variable
+
+    // might need to put this at the end of the while loop as well?
+  }
+
   while (p_actual < p_target) {
     p_actual = mpr.readPressure() - atm; // read current pressure
     digitalWrite(pin1, LOW); // set these opposite to spin motor cw/ccw
@@ -209,6 +207,23 @@ void deflate(int sol) {
   else {
     return;
   }
+}
+
+void collect_data(int motor, int pwm_speed, int num_trials) {
+  for (int i = 0; i < num_trials; i++) {
+    Serial.print("Inflating bladder..."); Serial.println(motor);
+    inflate(motor, pwm_speed);
+    delay(2000);
+    Serial.println("Deflating...");
+    deflate(motor);
+    Serial.print("Completed trial "); Serial.println(i);
+    delay(2000);
+  }
+}
+
+void read_FSR() {
+  p_target = analogRead(FSR_PIN);
+  Serial.print("FSR input: "); Serial.println(p_target);
 }
 
 void display_pressure() {
