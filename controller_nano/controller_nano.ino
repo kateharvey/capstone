@@ -80,7 +80,7 @@ float Reference_Input = 0; // Declare Desired Input Value
 float I_Gain = 1; // Declare Input Filter Function I(s) (assumed to be a gain)
 float V_in = 0; // Declare Voltage Input (volts)
 static unsigned int Period = 10; // Declare Capture/Control Loop Period in milli seconds (2-1000)
-static float Time = 8; // Declare Test Duration in seconds
+static float Time = 10; // Declare Test Duration in seconds
 
 float atm1;
 float atm2;
@@ -90,7 +90,7 @@ float p_target = Step_Input;
 float p1_actual = 0;
 float p1_target = 100; // Set this before running: 0-1000
 float p2_actual = 0;
-float p2_target = 40;
+float p2_target = 100;
 int pin1;
 int pin2;
 int pwm_pin;
