@@ -44,7 +44,7 @@ float atm;
 float p_actual;
 float p_target;
 float p1_actual = 0;
-float p1_target = 100; // pressure in mbar – sensor reads up to 1000
+float p1_target = 1000; // pressure in mbar – sensor reads up to 1000
 float p2_actual = 0;
 float p2_target = 100;
 
@@ -141,10 +141,31 @@ void setup() {
 }
 
 void loop() {
-  collect_data(0, 50, 10);
-    // motor: 1
-    // speed: 150 
-    // num_trials: 10
+  collect_data(0, 50, 5);
+  Serial.println("Round 1: 50 PWM Complete.");
+  delay(10000);
+
+  collect_data(0, 60, 5);
+  Serial.println("Round 2: 60 PWM Complete.");
+  delay(10000);
+
+  collect_data(0, 70, 5);
+  Serial.println("Round 3: 70 PWM Complete.");
+  delay(10000);
+
+  collect_data(0, 80, 5);
+  Serial.println("Round 4: 80 PWM Complete.");
+  delay(10000);
+
+  collect_data(0, 90, 5);
+  Serial.println("Round 5: 90 PWM Complete.");
+  delay(10000);
+
+  collect_data(0, 100, 5);
+  Serial.println("Round 6: 100 PWM Complete.");
+
+  while(1) {
+  }
 }
 
 
@@ -190,6 +211,7 @@ void inflate(int motor, int pwm_speed) {
     analogWrite(pwm_pin, pwm_speed); // drive motor
     print_outputs(); // send outputs to serial monitor
   }
+
   analogWrite(pwm_pin, 0); // stop motor
 }
 
@@ -211,11 +233,21 @@ void deflate(int sol) {
 
 void collect_data(int motor, int pwm_speed, int num_trials) {
   for (int i = 0; i < num_trials; i++) {
+
+    select_motor(motor);
     Serial.print("Inflating bladder..."); Serial.println(motor);
-    inflate(motor, pwm_speed);
-    delay(2000);
+
+    // run for 4 s:
+    digitalWrite(pin1, LOW); // set these opposite to spin motor cw/ccw
+    digitalWrite(pin2, HIGH);
+    analogWrite(pwm_pin, pwm_speed); // drive motor
+    delay(4000);
+
+    // deflate
+    digitalWrite(pwm_pin, 0);
     Serial.println("Deflating...");
     deflate(motor);
+
     Serial.print("Completed trial "); Serial.println(i);
     delay(2000);
   }
