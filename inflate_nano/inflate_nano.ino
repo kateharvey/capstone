@@ -51,10 +51,9 @@ float p2_target = 100;
 int pwm_pin;
 int pin1;
 int pin2;
-// int i = 0; // index for testing
-
-// Set up FSR
-int FSR_PIN = 0;
+int fsr1 = 0;
+int fsr2 = 2;
+int fsr;
 bool USE_FSR = false;
 
 // Timer Variables
@@ -91,8 +90,10 @@ void solenoid_setup() {
 }
 
 void setup() {
-  // for sensing
-  pinMode(FSR_PIN, OUTPUT);
+
+  // for sensor pins
+  pinMode(fsr1, OUTPUT);
+  pinMode(fsr2, OUTPUT);
 
   // Pump control pins
   pinMode(P12EN, OUTPUT);
@@ -141,31 +142,27 @@ void setup() {
 }
 
 void loop() {
-  collect_data(0, 50, 5);
-  Serial.println("Round 1: 50 PWM Complete.");
-  delay(10000);
 
-  collect_data(0, 60, 5);
-  Serial.println("Round 2: 60 PWM Complete.");
-  delay(10000);
+  inflate(0, 50);
 
-  collect_data(0, 70, 5);
-  Serial.println("Round 3: 70 PWM Complete.");
-  delay(10000);
 
-  collect_data(0, 80, 5);
-  Serial.println("Round 4: 80 PWM Complete.");
-  delay(10000);
+  // inflate pump 1:
+  /*
+  delay(3000);
+  inflate(0, 50);
+  Serial.println("Deflating...");
+  deflate(0);
+  
+  
+  // inflate pump 2:
+  float fsr_reading = analogRead(fsr2);
+  // Serial.print("Sensor 2 reading: "); Serial.println(fsr_reading);
+  p2_target = fsr_reading;
+  inflate(1, 50, p2_target);
+  // Serial.println("Deflating...");
+  deflate(1);
+  */
 
-  collect_data(0, 90, 5);
-  Serial.println("Round 5: 90 PWM Complete.");
-  delay(10000);
-
-  collect_data(0, 100, 5);
-  Serial.println("Round 6: 100 PWM Complete.");
-
-  while(1) {
-  }
 }
 
 
@@ -180,6 +177,7 @@ void select_motor(int motor) {
     pwm_pin = P12EN;
     atm = atm1;
     mpr = mpr1;
+    fsr = fsr1;
   }
   else if (motor == 1) {
     p_actual = p2_actual;
@@ -189,6 +187,7 @@ void select_motor(int motor) {
     pwm_pin = P34EN;
     atm = atm2;
     mpr = mpr2;
+    fsr = fsr2;
   }
   else {
     return;
@@ -198,11 +197,7 @@ void select_motor(int motor) {
 void inflate(int motor, int pwm_speed) {
   select_motor(motor);
 
-  if (USE_FSR) {
-    read_FSR(); // if using FSR, overwrites manually entered p_target variable
-
-    // might need to put this at the end of the while loop as well?
-  }
+  // p_target = analogRead(fsr);
 
   while (p_actual < p_target) {
     p_actual = mpr.readPressure() - atm; // read current pressure
@@ -211,7 +206,6 @@ void inflate(int motor, int pwm_speed) {
     analogWrite(pwm_pin, pwm_speed); // drive motor
     print_outputs(); // send outputs to serial monitor
   }
-
   analogWrite(pwm_pin, 0); // stop motor
 }
 
@@ -253,11 +247,6 @@ void collect_data(int motor, int pwm_speed, int num_trials) {
   }
 }
 
-void read_FSR() {
-  p_target = analogRead(FSR_PIN);
-  Serial.print("FSR input: "); Serial.println(p_target);
-}
-
 void display_pressure() {
   // Read each device separately
   tcaselect(0);
@@ -278,7 +267,9 @@ void display_pressure() {
 
 void print_outputs() {
   currTime = millis() - offsetTime;
-  Serial.print(currTime/1000.00,3); Serial.print(","); // time
-  Serial.print(p_target); Serial.print(","); // input value
-  Serial.println(p_actual); // pressure sensor reading
+  // Serial.print("time:")
+  // Serial.print(currTime/1000.00,3); Serial.print(","); // time
+  // Serial.print(p_target); Serial.print(","); // input value
+  // Serial.println(p_actual); // pressure sensor reading
+  Serial.println(analogRead(fsr2));
 }
