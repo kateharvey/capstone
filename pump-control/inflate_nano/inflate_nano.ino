@@ -86,6 +86,8 @@ void solenoid_setup() {
   // set back to pump lines:
   analogWrite(S12EN, 0);
   analogWrite(S34EN, 0);
+  digitalWrite(S2A, LOW);
+  digitalWrite(S4A, LOW);
   Serial.println("Bladders ready.");
 }
 
@@ -112,7 +114,7 @@ void setup() {
   pinMode(S4A, OUTPUT);
 
   // Initialization
-  Serial.begin(115200);
+  Serial.begin(9600);
   Wire.begin();
   
   tcaselect(0);
@@ -142,30 +144,80 @@ void setup() {
 }
 
 void loop() {
-  //Serial.println("Inflating...");
-  //inflate(0, 50);
-  //delay(1000);
-  //Serial.println("Switching lines");
+
+  Serial.print("Blue:\t");
+  Serial.print(analogRead(fsr1));
+  Serial.print("\tYellow:\t");
+  Serial.println(analogRead(fsr2));
+  if(analogRead(fsr1) >= 300) {
+    inflate(0, 50);
+  }
+  // inflate(0, 50);
+  // delay(5000);
+  /*
+  Serial.println("Starting pump");
+  digitalWrite(P1A, HIGH);
+  digitalWrite(P2A, LOW);
+  analogWrite(P12EN, 50);
+  delay(3000);
+
+  digitalWrite(S2A, HIGH);
+  analogWrite(S12EN, 255);
+  digitalWrite(S4A, HIGH);
+  analogWrite(S34EN, 255);
+
+  exit(0);
+
+  digitalWrite(P2A, LOW);
+
+
+  Serial.println("Reversing...");
+
+
   delay(1000);
-  analogWrite(S1A, 255); // switch solenoid line
-  Serial.println("Try deflate...");
+  digitalWrite(P1A, LOW);
+  digitalWrite(P2A, HIGH);
+  analogWrite(P12EN, 50);
+  delay(3000);
+  digitalWrite(P1A, LOW);
+  delay(1000);
+
+  digitalWrite(S2A, LOW);
+  analogWrite(S12EN, 0);
+  digitalWrite(S4A, LOW);
+  analogWrite(S34EN, 0);
+  */
+
+  /*
+  analogWrite(S1A, LOW);
+  analogWrite(S2A, LOW);
+  analogWrite(S12EN, 0); // switch solenoid line
+  Serial.println("Inflating...");
+  inflate(0, 50);
+  Serial.println("Done Inflating.");
+  delay(2000);
+
+  Serial.println("Switching line");
+  // analogWrite(S34EN, 255);
+  analogWrite(S12EN, 255); // switch solenoid line
+  // // delay(1000);
+  digitalWrite(S2A, HIGH);
+  // digitalWrite(S3A, HIGH);
+  // exit(0);
+  // delay(1000);
+
+  Serial.println("Deflating...");
+  //digitalWrite(P1A, HIGH);
+  //digitalWrite(P2A, LOW);
+  //analogWrite(P12EN, 50);
   inflate_reverse(0, 50);
 
-  // inflate pump 1:
-  /*
-  delay(3000);
-  inflate(0, 50);
-  Serial.println("Deflating...");
-  deflate(0);
-  
-  
-  // inflate pump 2:
-  float fsr_reading = analogRead(fsr2);
-  // Serial.print("Sensor 2 reading: "); Serial.println(fsr_reading);
-  p2_target = fsr_reading;
-  inflate(1, 50, p2_target);
-  // Serial.println("Deflating...");
-  deflate(1);
+  Serial.println("Done Deflating.");
+  delay(2000);
+
+  analogWrite(S12EN, 0); // switch solenoid line back
+  digitalWrite(S1A, LOW);
+  // analogWrite(S34EN, 0);
   */
 
 }
@@ -177,8 +229,8 @@ void select_motor(int motor) {
   if (motor == 0) {
     p_actual = p1_actual;
     p_target = p1_target;
-    pin1 = P2A;
-    pin2 = P1A;
+    pin1 = P1A;
+    pin2 = P2A;
     pwm_pin = P12EN;
     atm = atm1;
     mpr = mpr1;
@@ -205,26 +257,24 @@ void inflate(int motor, int pwm_speed) {
 
   while (p_actual < p_target) {
     p_actual = mpr.readPressure() - atm; // read current pressure
-    digitalWrite(pin1, LOW); // set these opposite to spin motor cw/ccw
-    digitalWrite(pin2, HIGH);
+    digitalWrite(pin1, HIGH); // set these opposite to spin motor cw/ccw
+    digitalWrite(pin2, LOW);
     analogWrite(pwm_pin, pwm_speed); // drive motor
-    print_outputs(); // send outputs to serial monitor
+    Serial.print("Blue:\t");
+    Serial.print(analogRead(fsr1));
+    Serial.print("\tYellow:\t");
+    Serial.println(analogRead(fsr2));
+    /// print_outputs(); // send outputs to serial monitor
   }
   analogWrite(pwm_pin, 0); // stop motor
 }
 
-
 void inflate_reverse(int motor, int pwm_speed) {
   select_motor(motor);
-  // p_target = analogRead(fsr);
-
-  while (p_actual < p_target) {
-    p_actual = mpr.readPressure() - atm; // read current pressure
-    digitalWrite(pin1, HIGH); // set these opposite to spin motor cw/ccw
-    digitalWrite(pin2, LOW);
-    analogWrite(pwm_pin, pwm_speed); // drive motor
-    print_outputs(); // send outputs to serial monitor
-  }
+  digitalWrite(pin2, LOW);
+  digitalWrite(pin1, HIGH);
+  analogWrite(pwm_pin, pwm_speed);
+  delay(1000);
   analogWrite(pwm_pin, 0); // stop motor
 }
 
