@@ -44,7 +44,7 @@ float atm;
 float p_actual;
 float p_target;
 float p1_actual = 0;
-float p1_target = 1000; // pressure in mbar – sensor reads up to 1000
+float p1_target = 100; // pressure in mbar – sensor reads up to 1000
 float p2_actual = 0;
 float p2_target = 100;
 
@@ -142,9 +142,14 @@ void setup() {
 }
 
 void loop() {
-
-  inflate(0, 50);
-
+  //Serial.println("Inflating...");
+  //inflate(0, 50);
+  //delay(1000);
+  //Serial.println("Switching lines");
+  delay(1000);
+  analogWrite(S1A, 255); // switch solenoid line
+  Serial.println("Try deflate...");
+  inflate_reverse(0, 50);
 
   // inflate pump 1:
   /*
@@ -196,7 +201,6 @@ void select_motor(int motor) {
 
 void inflate(int motor, int pwm_speed) {
   select_motor(motor);
-
   // p_target = analogRead(fsr);
 
   while (p_actual < p_target) {
@@ -208,6 +212,22 @@ void inflate(int motor, int pwm_speed) {
   }
   analogWrite(pwm_pin, 0); // stop motor
 }
+
+
+void inflate_reverse(int motor, int pwm_speed) {
+  select_motor(motor);
+  // p_target = analogRead(fsr);
+
+  while (p_actual < p_target) {
+    p_actual = mpr.readPressure() - atm; // read current pressure
+    digitalWrite(pin1, HIGH); // set these opposite to spin motor cw/ccw
+    digitalWrite(pin2, LOW);
+    analogWrite(pwm_pin, pwm_speed); // drive motor
+    print_outputs(); // send outputs to serial monitor
+  }
+  analogWrite(pwm_pin, 0); // stop motor
+}
+
 
 void deflate(int sol) {
   if (sol == 0) {
@@ -269,7 +289,7 @@ void print_outputs() {
   currTime = millis() - offsetTime;
   // Serial.print("time:")
   // Serial.print(currTime/1000.00,3); Serial.print(","); // time
-  // Serial.print(p_target); Serial.print(","); // input value
-  // Serial.println(p_actual); // pressure sensor reading
-  Serial.println(analogRead(fsr2));
+  Serial.print(p_target); Serial.print(","); // input value
+  Serial.println(p_actual); // pressure sensor reading
+  // Serial.println(analogRead(fsr2));
 }
