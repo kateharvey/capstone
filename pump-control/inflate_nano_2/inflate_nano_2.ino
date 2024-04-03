@@ -2,7 +2,7 @@
 #include "Adafruit_MPRLS.h"
 // #include <MsTimer2.h>
 #include <math.h>
-// #include <inflate_nano.h>
+#include <SparkFun_TB6612.h>
 
 //////////////////////////////////////////////////////////////
 // PINOUTS ///////////////////////////////////////////////////
@@ -17,6 +17,7 @@ Adafruit_MPRLS mpr1 = Adafruit_MPRLS(RESET_PIN, EOC_PIN);
 Adafruit_MPRLS mpr2 = Adafruit_MPRLS(RESET_PIN, EOC_PIN);
 Adafruit_MPRLS mpr = Adafruit_MPRLS(RESET_PIN, EOC_PIN);
 
+
 // Define Pump Pins (H-Bridge IC)
 #define P12EN 3     // enable switch (PWM to control speed)
 #define P1A 4       // digital HIGH/LOW
@@ -24,6 +25,7 @@ Adafruit_MPRLS mpr = Adafruit_MPRLS(RESET_PIN, EOC_PIN);
 #define P34EN 5     // enable switch for pump 2
 #define P3A 6       // direction control HIGH/LOW
 #define P4A 7       // direction control HIGH/LOW
+
 
 // Define Solenoid Pins
 #define S12EN 9     // enable switch (PWM to control speed)
@@ -71,7 +73,7 @@ void tcaselect(uint8_t i) {
 void solenoid_setup() {
   // call once during setup() loop before measuring offset
   Serial.println("Emptying bladders...");
-
+  
   // these do not change when switching lines, only enable pins (S12EN/S34EN)
   digitalWrite(S1A, LOW);
   digitalWrite(S2A, HIGH);
@@ -92,6 +94,7 @@ void solenoid_setup() {
 }
 
 void setup() {
+
   // for sensor pins
   pinMode(fsr1, OUTPUT);
   pinMode(fsr2, OUTPUT);
@@ -116,7 +119,7 @@ void setup() {
   Serial.begin(9600);
   Wire.begin();
   
-  tcaselect(1);
+  tcaselect(0);
   mpr1.begin();
   if (! mpr1.begin()) {
     Serial.println("Failed to communicate with MPRLS1 sensor, check wiring?");
@@ -124,7 +127,7 @@ void setup() {
   }
   Serial.println("MPR 1 initialization complete");
 
-  tcaselect(0);
+  tcaselect(1);
   mpr2.begin();
   if (! mpr2.begin()) {
     Serial.println("Failed to communicate with MPRLS2 sensor, check wiring?");
@@ -134,24 +137,26 @@ void setup() {
 
   // empty bladders; log pressure offsets
   solenoid_setup();
-  tcaselect(0);
   atm1 = mpr1.readPressure();
   Serial.print("Offset pressure MPR1: "); Serial.println(atm1);
-  tcaselect(1);
   atm2 = mpr2.readPressure();
   Serial.print("Offset pressure MPR2: "); Serial.println(atm2);
   delay(3000);
   offsetTime = millis();
-
-  Serial.println("Setup complete");
 }
 
 void loop() {
-  analogWrite(P12EN, 150);
-  analogWrite(P34EN, 150);
-  digitalWrite(P2A, HIGH);
-  digitalWrite(P4A, HIGH);
-  print_outputs();
+  
+  Serial.println("Inflating P1");
+  inflate(0, 100);
+  delay(1000);
+
+  Serial.println("Inflating P2");
+  inflate(1, 50);
+  delay(1000);
+
+  while(1) {
+  }
 }
 
 void print_sensor_readings() {
@@ -159,14 +164,14 @@ void print_sensor_readings() {
   Serial.print(analogRead(fsr1));
   Serial.print("\tYellow:\t");
   Serial.println(analogRead(fsr2));
-  // if(analogRead(fsr1) >= 300) {
-  //   inflate(0, 50);
-  // }
+  if(analogRead(fsr1) >= 300) {
+    inflate(0, 50);
+  }
 }
 
 void select_motor(int motor) {
   tcaselect(motor);
-
+  
   if (motor == 0) {
     p_actual = p1_actual;
     p_target = p1_target;
@@ -187,9 +192,11 @@ void select_motor(int motor) {
     mpr = mpr2;
     fsr = fsr2;
   }
+  
   else {
     return;
   }
+  
 }
 
 void inflate(int motor, int pwm_speed) {
@@ -198,11 +205,10 @@ void inflate(int motor, int pwm_speed) {
 
   while (p_actual < p_target) {
     p_actual = mpr.readPressure() - atm; // read current pressure
-    digitalWrite(pin1, HIGH);
+    digitalWrite(pin1, HIGH); // set these opposite to spin motor cw/ccw
     digitalWrite(pin2, LOW);
     analogWrite(pwm_pin, pwm_speed); // drive motor
     print_outputs(); // send outputs to serial monitor
-    //print_sensor_readings();
   }
   analogWrite(pwm_pin, 0); // stop motor
 }
@@ -210,10 +216,8 @@ void inflate(int motor, int pwm_speed) {
 void deflate(int sol) {
   if (sol == 0) {
     analogWrite(S12EN, 255); // set to open line
-    digitalWrite(S2A, HIGH);
     delay(1000);
     analogWrite(S12EN, 0); // set back to pump line
-    digitalWrite(S2A, LOW);
   }
   else if (sol == 1) {
     analogWrite(S34EN, 255);
