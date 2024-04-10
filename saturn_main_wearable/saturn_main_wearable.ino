@@ -258,8 +258,8 @@ void control_pump(bool is_print) {
         } else {
             digitalWrite(Sol_B1, HIGH); // open the solenoid to let the air out
             time2 = time2 + 1;
-        }            
-    } 
+        }
+    }
     else { // inflate
         digitalWrite(Sol_B1, LOW);      // ensure the solenoid is closed
         analogWrite(Pump_B_EN, pwm2);   // set the speed of the pump
@@ -304,13 +304,12 @@ void control_pump(bool is_print) {
 void data_collection() {
     Serial.println("Inflate Bladder 1");
     for (byte i = 0; i < 3; i++) {
-        inflate(50,     0);
-        inflate(60,     0);
-        inflate(70,     0);
-        inflate(80,     0);
-        inflate(90,     0);
-        inflate(100,    0);
-        inflate(110,    0);
+        inflate(0,     50);
+        inflate(0,     60);
+        inflate(0,     70);
+        inflate(0,     80);
+        inflate(0,     90);
+        inflate(0,    100);
     }
 
     Serial.println("Exiting...");
@@ -329,6 +328,8 @@ void data_collection() {
 // discrete inflate function for testing purposes
 void inflate(float pwm1, float pwm2) {
     float cur_pressure1 = 0;
+    unsigned long t_start;
+    unsigned long t_end;
     // float cur_pressure2 = 0;
 
     // ensure the solenoids are in the closed position
@@ -336,27 +337,30 @@ void inflate(float pwm1, float pwm2) {
     digitalWrite(Sol_B1, LOW);
 
     byte counter = 0;
+    t_start = millis();
     while(counter < 200) {
-      analogWrite(Pump_A_EN, pwm1);
-      digitalWrite(Pump_A1, HIGH);
-      // analogWrite(Pump_B_EN, pwm2);
-      // digitalWrite(Pump_B1, HIGH);
+      //analogWrite(Pump_A_EN, pwm1);
+      //digitalWrite(Pump_A1, HIGH);
+      analogWrite(Pump_B_EN, pwm2);
+      digitalWrite(Pump_B1, HIGH);
 
       Serial.print("PWM1:\t");
       Serial.print(pwm1);
 
-      tcaselect(0);
-      Serial.print("\t Bladder Pressure 1: \t");
-      Serial.println(p_sensor1.readPressure() - atm1);
-      // tcaselect(1);
-      // Serial.print("\tBladder Pressure 2:\t");
-      // Serial.print(p_sensor2.readPressure() - atm2);
+      //tcaselect(0);
+      //Serial.print("\t Bladder Pressure 1: \t");
+      //Serial.println(p_sensor1.readPressure() - atm1);
+      tcaselect(1);
+      Serial.print("\tBladder Pressure 2:\t");
+      Serial.print(p_sensor2.readPressure() - atm2);
 
-      // Serial.print("\tPWM2:\t");
-      // Serial.println(pwm2);
+      Serial.print("\tPWM2:\t");
+      Serial.println(pwm2);
 
       counter = counter + 1;
     }
+    t_end = millis();
+    Serial.println(t_end - t_start);
 
     // Empty bladders
     digitalWrite(Sol_A1, HIGH);
